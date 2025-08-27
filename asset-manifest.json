@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/wavesurfer-audio-player/static/css/main.51d26034.css",
+    "main.js": "/wavesurfer-audio-player/static/js/main.9933e699.js",
+    "static/js/453.96b4c73e.chunk.js": "/wavesurfer-audio-player/static/js/453.96b4c73e.chunk.js",
+    "index.html": "/wavesurfer-audio-player/index.html",
+    "main.51d26034.css.map": "/wavesurfer-audio-player/static/css/main.51d26034.css.map",
+    "main.9933e699.js.map": "/wavesurfer-audio-player/static/js/main.9933e699.js.map",
+    "453.96b4c73e.chunk.js.map": "/wavesurfer-audio-player/static/js/453.96b4c73e.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.51d26034.css",
+    "static/js/main.9933e699.js"
+  ]
+}
