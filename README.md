@@ -140,8 +140,15 @@ The app provides extensive customization options organized into three categories
 - **Real API Integration**: Uses official Spotify Web API
 - **Search Songs**: Look up tracks, artists, and albums
 - **Dynamic Results**: Real-time search with debouncing
-- **Preview Support**: Ready for Spotify preview URL integration
+- **Preview Playback**: Load 30-second previews directly into the waveform player
 - **Easy Setup**: Simple configuration file for API credentials
+
+#### 🎛️ Audio Input Management
+- **Side-by-Side Layout**: Upload and Spotify search options displayed together
+- **File Upload**: Drag & drop or click to upload audio files
+- **Individual Delete**: Remove specific uploaded files with X button
+- **Global Reset**: Clear all audio and reset player state completely
+- **Visual Feedback**: Clear indicators for available previews and file status
 
 #### ⚙️ Behavior
 - **Normalize**: Normalize audio levels

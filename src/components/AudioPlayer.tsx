@@ -447,9 +447,24 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
     setSpotifyQuery(`${track.name} - ${track.artist}`);
     setSpotifyResults([]);
     
-    // In a real implementation, you would load the preview URL
-    // For now, we'll just show a message
-    setError('Spotify preview URLs require proper API integration. Please upload an audio file instead.');
+    if (track.preview_url) {
+      // Load the Spotify preview URL into WaveSurfer
+      setError(null);
+      setIsLoading(true);
+      
+      if (wavesurferRef.current) {
+        try {
+          wavesurferRef.current.load(track.preview_url);
+          setAudioFile(new File([], `${track.name} - ${track.artist} (Spotify Preview)`));
+        } catch (err) {
+          console.error('Error loading Spotify preview:', err);
+          setError('Failed to load Spotify preview. Please try another track or upload an audio file.');
+        }
+      }
+    } else {
+      // No preview URL available
+      setError('This track has no preview available. Please try another track or upload an audio file.');
+    }
   };
 
   return (
@@ -666,91 +681,147 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
           {/* Right Side - Main Audio Player */}
           <div className="lg:flex-1 lg:min-w-0">
             <div className="bg-white rounded-xl shadow-xl p-8 border border-gray-100">
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Upload Audio File
-                </label>
-                <div className="flex items-center justify-center w-full">
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <svg className="w-8 h-8 mb-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
-                        <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
-                      </svg>
-                      <p className="mb-2 text-sm text-gray-500">
-                        <span className="font-semibold">Click to upload</span> or drag and drop
-                      </p>
-                      <p className="text-xs text-gray-500">MP3, WAV, OGG, or any audio format</p>
+              {/* Audio Input Options - Side by Side */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                {/* File Upload Section */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="text-sm font-medium text-gray-900 mb-3">Upload Audio File</h3>
+                  <div className="flex items-center justify-center w-full">
+                    <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-white hover:bg-gray-50 transition-colors">
+                      <div className="flex flex-col items-center justify-center">
+                        <svg className="w-6 h-6 mb-2 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                          <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
+                        </svg>
+                        <p className="text-sm text-gray-500">
+                          <span className="font-semibold">Click to upload</span>
+                        </p>
+                        <p className="text-xs text-gray-500">MP3, WAV, OGG, or any audio format</p>
+                      </div>
+                      <input
+                        type="file"
+                        accept="audio/*"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                  
+                  {audioFile && (
+                    <div className="mt-3 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <svg className="w-4 h-4 text-indigo-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.414L13.586 10l-1.293-1.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                          <p className="text-sm text-indigo-800">
+                            <span className="font-medium">File:</span> {audioFile.name}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setAudioFile(null);
+                            if (wavesurferRef.current) {
+                              wavesurferRef.current.empty();
+                            }
+                            setError(null);
+                            setIsPlaying(false);
+                          }}
+                          className="p-1 text-red-600 hover:text-red-800 hover:bg-red-100 rounded transition-colors"
+                          title="Remove audio file"
+                        >
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
+                  )}
+                </div>
+
+                {/* Spotify Search Section */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="text-sm font-medium text-gray-900 mb-3">Search Spotify</h3>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Search for songs and click on results to load 30-second previews
+                  </p>
+                  <div className="relative">
                     <input
-                      type="file"
-                      accept="audio/*"
-                      onChange={handleFileUpload}
-                      className="hidden"
+                      type="text"
+                      value={spotifyQuery}
+                      onChange={handleSpotifySearch}
+                      placeholder="Search for songs, artists, or albums..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                     />
-                  </label>
+                    {isSearching && (
+                      <div className="absolute right-3 top-3">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Spotify Search Results */}
+                  {spotifyResults.length > 0 && (
+                    <div className="mt-3 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      {spotifyResults.map((track) => (
+                        <div
+                          key={track.id}
+                          onClick={() => selectSpotifyTrack(track)}
+                          className="p-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium text-gray-900 text-sm">{track.name}</p>
+                              <p className="text-xs text-gray-600">{track.artist}</p>
+                              {track.preview_url && (
+                                <p className="text-xs text-green-600">🎵 Preview available</p>
+                              )}
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              {track.preview_url ? (
+                                <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                                </svg>
+                              ) : (
+                                <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L10.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.586 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" />
+                                </svg>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
-
-              {audioFile && (
-                <div className="mb-6 p-4 bg-indigo-50 rounded-lg border border-indigo-200">
-                  <div className="flex items-center">
-                    <svg className="w-5 h-5 text-indigo-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.414L13.586 10l-1.293-1.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                    <p className="text-sm text-indigo-800">
-                      <span className="font-medium">File:</span> {audioFile.name}
-                    </p>
-                  </div>
-                </div>
-              )}
 
               {/* Spotify Configuration Test */}
               <SpotifyConfigTest />
 
-              {/* Spotify Search Section */}
-              <div className="mb-6">
-                <label className="text-sm font-medium text-gray-700 mb-3">
-                  Search Spotify
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={spotifyQuery}
-                    onChange={handleSpotifySearch}
-                    placeholder="Search for songs, artists, or albums..."
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                  {isSearching && (
-                    <div className="absolute right-3 top-3">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600"></div>
-                    </div>
-                  )}
+              {/* Global Audio Reset Button */}
+              {(audioFile || spotifyQuery) && (
+                <div className="mb-6 flex justify-center">
+                  <button
+                    onClick={() => {
+                      setAudioFile(null);
+                      setSpotifyQuery('');
+                      setSpotifyResults([]);
+                      if (wavesurferRef.current) {
+                        wavesurferRef.current.empty();
+                      }
+                      setError(null);
+                      setIsPlaying(false);
+                    }}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2"
+                    title="Clear all audio and reset player"
+                  >
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 11 2 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    <span>Clear All Audio</span>
+                  </button>
                 </div>
-                
-                {/* Spotify Search Results */}
-                {spotifyResults.length > 0 && (
-                  <div className="mt-3 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    {spotifyResults.map((track) => (
-                      <div
-                        key={track.id}
-                        onClick={() => selectSpotifyTrack(track)}
-                        className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium text-gray-900">{track.name}</p>
-                            <p className="text-sm text-gray-600">{track.artist}</p>
-                            <p className="text-xs text-gray-500">{track.album}</p>
-                          </div>
-                          <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
-                          </svg>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              )}
 
               <div className="mb-6 relative">
                 {isLoading && (
