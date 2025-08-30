@@ -20,7 +20,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
   const waveformRef = useRef<HTMLDivElement>(null);
   const wavesurferRef = useRef<WaveSurfer | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [duration, setDuration] = useState(0);
+
 
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -81,7 +81,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
 
         wavesurferRef.current.on('ready', () => {
           console.log('WaveSurfer ready!');
-          setDuration(wavesurferRef.current!.getDuration());
           setIsLoading(false);
           setError(null);
         });
@@ -91,7 +90,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
         });
 
         wavesurferRef.current.on('finish', () => {
-          setIsPlaying(false);
+          setIsPlaying(() => false);
         });
 
         wavesurferRef.current.on('error', (err) => {
@@ -148,15 +147,18 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
           setWaveformOptions(prev => ({ ...prev, minPxPerSec: newZoom }));
         };
 
+        // Store ref in variable for cleanup
+        const currentWaveformRef = waveformRef.current;
+        
         // Add event listeners
         document.addEventListener('keydown', handleKeyDown);
-        waveformRef.current.addEventListener('wheel', handleWheel, { passive: false });
+        currentWaveformRef.addEventListener('wheel', handleWheel, { passive: false });
 
         // Cleanup function
         return () => {
           document.removeEventListener('keydown', handleKeyDown);
-          if (waveformRef.current) {
-            waveformRef.current.removeEventListener('wheel', handleWheel);
+          if (currentWaveformRef) {
+            currentWaveformRef.removeEventListener('wheel', handleWheel);
           }
         };
       } catch (err) {
@@ -171,6 +173,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
         wavesurferRef.current = null;
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [volume]); // Only run once on mount, but include volume dependency
 
   // Separate effect for updating options without recreating the instance
@@ -192,7 +195,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
         console.error('Error updating waveform options:', err);
       }
     }
-  }, [waveformOptions.waveColor, waveformOptions.progressColor, waveformOptions.cursorColor, waveformOptions.barWidth, waveformOptions.barGap, waveformOptions.barRadius, waveformOptions.height, waveformOptions.minPxPerSec, audioFile]);
+  }, [waveformOptions, audioFile]);
 
   useEffect(() => {
     if (wavesurferRef.current) {
@@ -228,7 +231,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
       } else {
         wavesurferRef.current.play();
       }
-      setIsPlaying(!isPlaying);
+      setIsPlaying(prev => !prev);
     }
   };
 
