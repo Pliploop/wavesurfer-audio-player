@@ -31,6 +31,8 @@ Add these two secrets:
 
 If you get an error about missing environment or deployment failures:
 
+**Note**: The GitHub Actions workflow now requires a `github-pages` environment to be configured in your repository settings.
+
 ### 1. Go to Repository Settings
 1. Navigate to your GitHub repository
 2. Click on **Settings** tab

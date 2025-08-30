@@ -220,7 +220,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
         wavesurferRef.current.load(audioUrl);
       }
     } else if (file) {
-      setError('Please select a valid audio file');
+      setError('Invalid file type');
     }
   };
 
@@ -303,7 +303,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
       }
     } catch (err) {
       console.error('Export error:', err);
-      setError('Failed to export waveform');
+      setError('Export failed');
     } finally {
       setIsExporting(false);
     }
@@ -342,7 +342,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
     try {
       // Check if Spotify is properly configured
       if (!isSpotifyConfigured()) {
-        throw new Error('Spotify API not configured. Please set up your credentials in .env file.');
+        throw new Error('Credentials needed');
       }
 
       // Spotify API integration using environment variables
@@ -360,7 +360,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
       });
 
       if (!tokenResponse.ok) {
-        throw new Error('Failed to get Spotify access token');
+        throw new Error('Token error');
       }
 
       const tokenData = await tokenResponse.json();
@@ -377,7 +377,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
       );
 
       if (!searchResponse.ok) {
-        throw new Error('Failed to search Spotify');
+        throw new Error('Search error');
       }
 
       const searchData = await searchResponse.json();
@@ -425,7 +425,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
       );
       
       setSpotifyResults(mockResults);
-      setError('Spotify API unavailable, showing sample results. Add your credentials to enable real search.');
+      setError('Showing sample results');
     } finally {
       setIsSearching(false);
     }
@@ -458,12 +458,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
           setAudioFile(new File([], `${track.name} - ${track.artist} (Spotify Preview)`));
         } catch (err) {
           console.error('Error loading Spotify preview:', err);
-          setError('Failed to load Spotify preview. Please try another track or upload an audio file.');
+          setError('Loading preview...');
         }
       }
     } else {
-      // No preview URL available
-      setError('This track has no preview available. Please try another track or upload an audio file.');
+      // No preview URL available - just show in info box
+      setError('No preview available for this track');
     }
   };
 
