@@ -4,6 +4,9 @@ name: Deploy to GitHub Pages
 # - Pushing to main: Builds and deploys (useful for direct deployment)
 # - Pushing to gh-pages: Builds and deploys (triggers from deploy script)
 # - Manual trigger: Available via workflow_dispatch
+#
+# Note: Requires github-pages environment to be configured in repository settings
+# with protection rules disabled for automatic deployment
 on:
   push:
     branches: [ main, gh-pages ]
