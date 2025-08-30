@@ -1,8 +1,12 @@
 name: Deploy to GitHub Pages
 
+# This workflow will now run on both main and gh-pages pushes
+# - Pushing to main: Builds and deploys (useful for direct deployment)
+# - Pushing to gh-pages: Builds and deploys (triggers from deploy script)
+# - Manual trigger: Available via workflow_dispatch
 on:
   push:
-    branches: [ gh-pages ]
+    branches: [ main, gh-pages ]
   workflow_dispatch:
 
 permissions:
