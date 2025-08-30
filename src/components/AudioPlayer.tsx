@@ -393,39 +393,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
       setSpotifyResults(tracks);
     } catch (err) {
       console.error('Spotify search error:', err);
-      // Fallback to mock results if API fails
-      const mockResults: SpotifyTrack[] = [
-        {
-          id: '1',
-          name: 'Bohemian Rhapsody',
-          artist: 'Queen',
-          album: 'A Night at the Opera',
-          preview_url: 'https://example.com/preview1.mp3',
-          external_urls: { spotify: 'https://open.spotify.com/track/1' }
-        },
-        {
-          id: '2',
-          name: 'Hotel California',
-          artist: 'Eagles',
-          album: 'Hotel California',
-          preview_url: 'https://example.com/preview2.mp3',
-          external_urls: { spotify: 'https://open.spotify.com/track/2' }
-        },
-        {
-          id: '3',
-          name: 'Stairway to Heaven',
-          artist: 'Led Zeppelin',
-          album: 'Led Zeppelin IV',
-          preview_url: 'https://example.com/preview3.mp3',
-          external_urls: { spotify: 'https://open.spotify.com/track/3' }
-        }
-      ].filter(track => 
-        track.name.toLowerCase().includes(query.toLowerCase()) ||
-        track.artist.toLowerCase().includes(query.toLowerCase())
-      );
-      
-      setSpotifyResults(mockResults);
-      setError('Showing sample results');
+      setError('Search failed');
+      setSpotifyResults([]);
     } finally {
       setIsSearching(false);
     }
@@ -453,13 +422,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
       setIsLoading(true);
       
       if (wavesurferRef.current) {
-        try {
-          wavesurferRef.current.load(track.preview_url);
-          setAudioFile(new File([], `${track.name} - ${track.artist} (Spotify Preview)`));
-        } catch (err) {
-          console.error('Error loading Spotify preview:', err);
-          setError('Loading preview...');
-        }
+        wavesurferRef.current.load(track.preview_url);
+        setAudioFile(new File([], `${track.name} - ${track.artist} (Spotify Preview)`));
       }
     } else {
       // No preview URL available - just show in info box
