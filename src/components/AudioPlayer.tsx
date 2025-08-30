@@ -21,7 +21,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
   const wavesurferRef = useRef<WaveSurfer | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
+
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +35,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
   const [spotifyQuery, setSpotifyQuery] = useState('');
   const [spotifyResults, setSpotifyResults] = useState<SpotifyTrack[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [selectedSpotifyTrack, setSelectedSpotifyTrack] = useState<SpotifyTrack | null>(null);
+
   
   const [waveformOptions, setWaveformOptions] = useState({
     waveColor: '#4F46E5',
@@ -87,7 +87,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
         });
 
         wavesurferRef.current.on('audioprocess', () => {
-          setCurrentTime(wavesurferRef.current!.getCurrentTime());
+          // Update current time for progress tracking
         });
 
         wavesurferRef.current.on('finish', () => {
@@ -171,7 +171,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
         wavesurferRef.current = null;
       }
     };
-  }, []); // Only run once on mount
+  }, [volume]); // Only run once on mount, but include volume dependency
 
   // Separate effect for updating options without recreating the instance
   useEffect(() => {
@@ -236,21 +236,13 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
     if (wavesurferRef.current) {
       wavesurferRef.current.stop();
       setIsPlaying(false);
-      setCurrentTime(0);
+      // Reset current time
     }
   };
 
-  const seekTo = (time: number) => {
-    if (wavesurferRef.current) {
-      wavesurferRef.current.seekTo(time / duration);
-    }
-  };
 
-  const formatTime = (time: number) => {
-    const minutes = Math.floor(time / 60);
-    const seconds = Math.floor(time % 60);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  };
+
+
 
   const handleOptionChange = (key: string, value: string | number | boolean) => {
     setWaveformOptions(prev => ({
@@ -449,7 +441,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
   };
 
   const selectSpotifyTrack = (track: SpotifyTrack) => {
-    setSelectedSpotifyTrack(track);
     setSpotifyQuery(`${track.name} - ${track.artist}`);
     setSpotifyResults([]);
     
