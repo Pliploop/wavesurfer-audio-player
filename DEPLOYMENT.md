@@ -32,6 +32,7 @@ Add these two secrets:
 1. **Local Development**: Uses `.env` file
 2. **GitHub Actions Build**: Uses GitHub Secrets as environment variables
 3. **Production**: Built with real credentials embedded in the bundle
+4. **Deployment**: Single job builds and deploys to GitHub Pages automatically
 
 ## 📝 Environment Variables
 
