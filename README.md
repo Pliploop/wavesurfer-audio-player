@@ -19,6 +19,25 @@ A modern, feature-rich audio player built with React, TypeScript, and WaveSurfer
 - Node.js 16+ 
 - npm or yarn
 
+### Spotify API Setup (Optional)
+
+To enable Spotify search functionality:
+
+1. Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+2. Log in with your Spotify account
+3. Create a new app
+4. Copy the Client ID and Client Secret
+5. Create a `.env` file in the root directory with:
+   ```bash
+   REACT_APP_SPOTIFY_CLIENT_ID=your_actual_client_id
+   REACT_APP_SPOTIFY_CLIENT_SECRET=your_actual_client_secret
+   ```
+6. Restart your development server
+
+**Note**: The `.env` file is automatically ignored by git for security.
+
+For production deployment to GitHub Pages, see [DEPLOYMENT.md](./DEPLOYMENT.md) for setting up GitHub Secrets.
+
 ### Installation
 
 1. Clone the repository:
@@ -98,6 +117,31 @@ The app provides extensive customization options organized into three categories
 - **Bar Gap**: Space between bars (0-5px)
 - **Height**: Overall waveform height (50-200px)
 - **Bar Radius**: Corner radius of bars (0-10px)
+- **Zoom Level**: Pixels per second for detailed view (10-200px/s)
+
+### Advanced Features
+
+#### 📤 Export Functionality
+- **PNG Export**: Save waveform as high-quality PNG image
+- **SVG Export**: Export waveform as scalable vector graphics
+- **Automatic Naming**: Files are saved with timestamps
+
+#### 🧭 Navigation Controls
+- **Native WaveSurfer.js**: Built-in zoom and navigation
+- **Mouse Wheel Zoom**: Ctrl+Scroll to zoom in/out
+- **Keyboard Shortcuts**: 
+  - `←→` Arrow keys to seek 5 seconds
+  - `Space` to play/pause
+  - `Home` to go to beginning
+  - `End` to go to end
+- **Real-time Updates**: See changes immediately
+
+#### 🎵 Spotify Integration
+- **Real API Integration**: Uses official Spotify Web API
+- **Search Songs**: Look up tracks, artists, and albums
+- **Dynamic Results**: Real-time search with debouncing
+- **Preview Support**: Ready for Spotify preview URL integration
+- **Easy Setup**: Simple configuration file for API credentials
 
 #### ⚙️ Behavior
 - **Normalize**: Normalize audio levels

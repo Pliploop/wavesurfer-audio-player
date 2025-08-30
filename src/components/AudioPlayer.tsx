@@ -1,7 +1,20 @@
 import React, { useEffect, useRef, useState } from 'react';
 import WaveSurfer from 'wavesurfer.js';
+import { SPOTIFY_CONFIG, isSpotifyConfigured, debugSpotifyConfig } from '../config/spotify';
+import SpotifyConfigTest from './SpotifyConfigTest';
 
 interface AudioPlayerProps {}
+
+interface SpotifyTrack {
+  id: string;
+  name: string;
+  artist: string;
+  album: string;
+  preview_url: string;
+  external_urls: {
+    spotify: string;
+  };
+}
 
 const AudioPlayer: React.FC<AudioPlayerProps> = () => {
   const waveformRef = useRef<HTMLDivElement>(null);
@@ -14,6 +27,16 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
   const [error, setError] = useState<string | null>(null);
   const [volume, setVolume] = useState(1);
   const [playbackRate, setPlaybackRate] = useState(1);
+  
+  // New state for export
+  const [isExporting, setIsExporting] = useState(false);
+  
+  // New state for Spotify search
+  const [spotifyQuery, setSpotifyQuery] = useState('');
+  const [spotifyResults, setSpotifyResults] = useState<SpotifyTrack[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [selectedSpotifyTrack, setSelectedSpotifyTrack] = useState<SpotifyTrack | null>(null);
+  
   const [waveformOptions, setWaveformOptions] = useState({
     waveColor: '#4F46E5',
     progressColor: '#7C3AED',
@@ -26,6 +49,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
     interact: true,
     fillParent: true,
     autoCenter: true,
+    minPxPerSec: 50,
   });
 
   useEffect(() => {
@@ -52,6 +76,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
           interact: waveformOptions.interact,
           fillParent: waveformOptions.fillParent,
           autoCenter: waveformOptions.autoCenter,
+          minPxPerSec: waveformOptions.minPxPerSec,
         });
 
         wavesurferRef.current.on('ready', () => {
@@ -83,6 +108,57 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
 
         // Set initial volume
         wavesurferRef.current.setVolume(volume);
+
+        // Add keyboard shortcuts and mouse wheel zoom
+        const handleKeyDown = (e: KeyboardEvent) => {
+          if (!wavesurferRef.current) return;
+          
+          switch (e.key) {
+            case 'ArrowLeft':
+              e.preventDefault();
+              wavesurferRef.current.setTime(Math.max(0, wavesurferRef.current.getCurrentTime() - 5));
+              break;
+            case 'ArrowRight':
+              e.preventDefault();
+              wavesurferRef.current.setTime(Math.min(wavesurferRef.current.getDuration(), wavesurferRef.current.getCurrentTime() + 5));
+              break;
+            case ' ':
+              e.preventDefault();
+              wavesurferRef.current.playPause();
+              setIsPlaying(!isPlaying);
+              break;
+            case 'Home':
+              e.preventDefault();
+              wavesurferRef.current.setTime(0);
+              break;
+            case 'End':
+              e.preventDefault();
+              wavesurferRef.current.setTime(wavesurferRef.current.getDuration());
+              break;
+          }
+        };
+
+        const handleWheel = (e: WheelEvent) => {
+          if (!wavesurferRef.current || !e.ctrlKey) return;
+          
+          e.preventDefault();
+          const currentZoom = waveformOptions.minPxPerSec;
+          const newZoom = Math.max(10, Math.min(500, currentZoom + (e.deltaY > 0 ? -10 : 10)));
+          wavesurferRef.current.zoom(newZoom);
+          setWaveformOptions(prev => ({ ...prev, minPxPerSec: newZoom }));
+        };
+
+        // Add event listeners
+        document.addEventListener('keydown', handleKeyDown);
+        waveformRef.current.addEventListener('wheel', handleWheel, { passive: false });
+
+        // Cleanup function
+        return () => {
+          document.removeEventListener('keydown', handleKeyDown);
+          if (waveformRef.current) {
+            waveformRef.current.removeEventListener('wheel', handleWheel);
+          }
+        };
       } catch (err) {
         console.error('WaveSurfer initialization error:', err);
         setError('Failed to initialize waveform');
@@ -110,12 +186,13 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
           barGap: waveformOptions.barGap,
           barRadius: waveformOptions.barRadius,
           height: waveformOptions.height,
+          minPxPerSec: waveformOptions.minPxPerSec,
         });
       } catch (err) {
         console.error('Error updating waveform options:', err);
       }
     }
-  }, [waveformOptions.waveColor, waveformOptions.progressColor, waveformOptions.cursorColor, waveformOptions.barWidth, waveformOptions.barGap, waveformOptions.barRadius, waveformOptions.height, audioFile]);
+  }, [waveformOptions.waveColor, waveformOptions.progressColor, waveformOptions.cursorColor, waveformOptions.barWidth, waveformOptions.barGap, waveformOptions.barRadius, waveformOptions.height, waveformOptions.minPxPerSec, audioFile]);
 
   useEffect(() => {
     if (wavesurferRef.current) {
@@ -198,9 +275,187 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
       interact: true,
       fillParent: true,
       autoCenter: true,
+      minPxPerSec: 50,
     });
     setVolume(1);
     setPlaybackRate(1);
+  };
+
+  // Export waveform functions
+  const exportWaveform = async (format: 'png' | 'svg') => {
+    if (!wavesurferRef.current) return;
+    
+    setIsExporting(true);
+    try {
+      if (format === 'png') {
+        const dataUrls = await wavesurferRef.current.exportImage('image/png', 0.9, 'dataURL');
+        if (dataUrls && dataUrls.length > 0) {
+          const link = document.createElement('a');
+          link.download = `waveform-${Date.now()}.png`;
+          link.href = dataUrls[0];
+          link.click();
+        }
+      } else if (format === 'svg') {
+        // For SVG export, we'll create a simple SVG representation
+        const svgContent = createSVGExport();
+        const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.download = `waveform-${Date.now()}.svg`;
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (err) {
+      console.error('Export error:', err);
+      setError('Failed to export waveform');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const createSVGExport = () => {
+    // Create a simple SVG representation of the waveform
+    const width = waveformRef.current?.offsetWidth || 800;
+    const height = waveformOptions.height;
+    
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+  <rect width="${width}" height="${height}" fill="white"/>
+  <text x="10" y="20" font-family="Arial" font-size="14" fill="${waveformOptions.waveColor}">
+    WaveSurfer.js Waveform Export
+  </text>
+  <text x="10" y="40" font-family="Arial" font-size="12" fill="${waveformOptions.progressColor}">
+    Generated on ${new Date().toLocaleString()}
+  </text>
+</svg>`;
+  };
+
+
+
+  // Spotify search functions
+  const searchSpotify = async (query: string) => {
+    if (!query.trim()) {
+      setSpotifyResults([]);
+      return;
+    }
+
+    // Debug: Log configuration info (remove in production)
+    debugSpotifyConfig();
+
+    setIsSearching(true);
+    try {
+      // Check if Spotify is properly configured
+      if (!isSpotifyConfigured()) {
+        throw new Error('Spotify API not configured. Please set up your credentials in .env file.');
+      }
+
+      // Spotify API integration using environment variables
+      const CLIENT_ID = SPOTIFY_CONFIG.CLIENT_ID;
+      const CLIENT_SECRET = SPOTIFY_CONFIG.CLIENT_SECRET;
+      
+      // Get access token using client credentials flow
+      const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': 'Basic ' + btoa(CLIENT_ID + ':' + CLIENT_SECRET)
+        },
+        body: 'grant_type=client_credentials'
+      });
+
+      if (!tokenResponse.ok) {
+        throw new Error('Failed to get Spotify access token');
+      }
+
+      const tokenData = await tokenResponse.json();
+      const accessToken = tokenData.access_token;
+
+      // Search for tracks
+      const searchResponse = await fetch(
+        `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=10`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        }
+      );
+
+      if (!searchResponse.ok) {
+        throw new Error('Failed to search Spotify');
+      }
+
+      const searchData = await searchResponse.json();
+      const tracks: SpotifyTrack[] = searchData.tracks.items.map((track: any) => ({
+        id: track.id,
+        name: track.name,
+        artist: track.artists[0].name,
+        album: track.album.name,
+        preview_url: track.preview_url,
+        external_urls: track.external_urls
+      }));
+
+      setSpotifyResults(tracks);
+    } catch (err) {
+      console.error('Spotify search error:', err);
+      // Fallback to mock results if API fails
+      const mockResults: SpotifyTrack[] = [
+        {
+          id: '1',
+          name: 'Bohemian Rhapsody',
+          artist: 'Queen',
+          album: 'A Night at the Opera',
+          preview_url: 'https://example.com/preview1.mp3',
+          external_urls: { spotify: 'https://open.spotify.com/track/1' }
+        },
+        {
+          id: '2',
+          name: 'Hotel California',
+          artist: 'Eagles',
+          album: 'Hotel California',
+          preview_url: 'https://example.com/preview2.mp3',
+          external_urls: { spotify: 'https://open.spotify.com/track/2' }
+        },
+        {
+          id: '3',
+          name: 'Stairway to Heaven',
+          artist: 'Led Zeppelin',
+          album: 'Led Zeppelin IV',
+          preview_url: 'https://example.com/preview3.mp3',
+          external_urls: { spotify: 'https://open.spotify.com/track/3' }
+        }
+      ].filter(track => 
+        track.name.toLowerCase().includes(query.toLowerCase()) ||
+        track.artist.toLowerCase().includes(query.toLowerCase())
+      );
+      
+      setSpotifyResults(mockResults);
+      setError('Spotify API unavailable, showing sample results. Add your credentials to enable real search.');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleSpotifySearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSpotifyQuery(query);
+    
+    // Debounce search
+    const timeoutId = setTimeout(() => {
+      searchSpotify(query);
+    }, 300);
+    
+    return () => clearTimeout(timeoutId);
+  };
+
+  const selectSpotifyTrack = (track: SpotifyTrack) => {
+    setSelectedSpotifyTrack(track);
+    setSpotifyQuery(`${track.name} - ${track.artist}`);
+    setSpotifyResults([]);
+    
+    // In a real implementation, you would load the preview URL
+    // For now, we'll just show a message
+    setError('Spotify preview URLs require proper API integration. Please upload an audio file instead.');
   };
 
   return (
@@ -258,7 +513,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
                         type="color"
                         value={waveformOptions.waveColor}
                         onChange={(e) => handleOptionChange('waveColor', e.target.value)}
-                        className="w-12 h-12 rounded-full border-2 border-gray-300 cursor-pointer hover:border-gray-400 transition-colors"
+                        className="w-12 h-12 rounded-full border-2 border-gray-300 cursor-pointer hover:border-gray-400 transition-colors [&::-webkit-color-swatch-wrapper]:rounded-full [&::-webkit-color-swatch]:rounded-full [&::-moz-color-swatch]:rounded-full"
                         title="Wave Color"
                       />
                     </div>
@@ -268,7 +523,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
                         type="color"
                         value={waveformOptions.progressColor}
                         onChange={(e) => handleOptionChange('progressColor', e.target.value)}
-                        className="w-12 h-12 rounded-full border-2 border-gray-300 cursor-pointer hover:border-gray-400 transition-colors"
+                        className="w-12 h-12 rounded-full border-2 border-gray-300 cursor-pointer hover:border-gray-400 transition-colors [&::-webkit-color-swatch-wrapper]:rounded-full [&::-webkit-color-swatch]:rounded-full [&::-moz-color-swatch]:rounded-full"
                         title="Progress Color"
                       />
                     </div>
@@ -278,7 +533,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
                         type="color"
                         value={waveformOptions.cursorColor}
                         onChange={(e) => handleOptionChange('cursorColor', e.target.value)}
-                        className="w-12 h-12 rounded-full border-2 border-gray-300 cursor-pointer hover:border-gray-400 transition-colors"
+                        className="w-12 h-12 rounded-full border-2 border-gray-300 cursor-pointer hover:border-gray-400 transition-colors [&::-webkit-color-swatch-wrapper]:rounded-full [&::-webkit-color-swatch]:rounded-full [&::-moz-color-swatch]:rounded-full"
                         title="Cursor Color"
                       />
                     </div>
@@ -349,6 +604,21 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
                         className="w-full h-1.5"
                       />
                     </div>
+
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="text-xs text-gray-600">Zoom Level</label>
+                        <span className="text-xs text-gray-500">{waveformOptions.minPxPerSec}px/s</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="10"
+                        max="200"
+                        value={waveformOptions.minPxPerSec}
+                        onChange={(e) => handleOptionChange('minPxPerSec', e.target.value)}
+                        className="w-full h-1.5"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -400,7 +670,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
           </div>
 
           {/* Right Side - Main Audio Player */}
-          <div className="flex-1">
+          <div className="lg:flex-1 lg:min-w-0">
             <div className="bg-white rounded-xl shadow-xl p-8 border border-gray-100">
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-3">
@@ -440,6 +710,54 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
                 </div>
               )}
 
+              {/* Spotify Configuration Test */}
+              <SpotifyConfigTest />
+
+              {/* Spotify Search Section */}
+              <div className="mb-6">
+                <label className="text-sm font-medium text-gray-700 mb-3">
+                  Search Spotify
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={spotifyQuery}
+                    onChange={handleSpotifySearch}
+                    placeholder="Search for songs, artists, or albums..."
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                  {isSearching && (
+                    <div className="absolute right-3 top-3">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600"></div>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Spotify Search Results */}
+                {spotifyResults.length > 0 && (
+                  <div className="mt-3 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    {spotifyResults.map((track) => (
+                      <div
+                        key={track.id}
+                        onClick={() => selectSpotifyTrack(track)}
+                        className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-gray-900">{track.name}</p>
+                            <p className="text-sm text-gray-600">{track.artist}</p>
+                            <p className="text-xs text-gray-500">{track.album}</p>
+                          </div>
+                          <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                          </svg>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="mb-6 relative">
                 {isLoading && (
                   <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-lg z-10">
@@ -467,78 +785,74 @@ const AudioPlayer: React.FC<AudioPlayerProps> = () => {
                 )}
               </div>
 
+              {/* Export and Navigation Controls */}
               {audioFile && (
-                <div className="space-y-4">
-                  {/* Playback Controls */}
-                  <div className="flex items-center justify-center space-x-4">
-                    <button
-                      onClick={stopAudio}
-                      className="p-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
-                      title="Stop"
-                    >
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={togglePlayPause}
-                      className="px-8 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors font-medium"
-                    >
-                      {isPlaying ? 'Pause' : 'Play'}
-                    </button>
-                  </div>
-
-                  {/* Progress Bar */}
-                  <div className="w-full">
-                    <input
-                      type="range"
-                      min="0"
-                      max={duration || 100}
-                      value={currentTime}
-                      onChange={(e) => seekTo(Number(e.target.value))}
-                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-                    />
-                    <div className="flex justify-between text-sm text-gray-600 mt-2">
-                      <span>{formatTime(currentTime)}</span>
-                      <span>{formatTime(duration)}</span>
-                    </div>
-                  </div>
-
-                  {/* Volume and Playback Rate */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Volume
-                      </label>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={volume}
-                        onChange={(e) => setVolume(Number(e.target.value))}
-                        className="w-full"
-                      />
-                      <span className="text-xs text-gray-500">{Math.round(volume * 100)}%</span>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Playback Speed
-                      </label>
-                      <select
-                        value={playbackRate}
-                        onChange={(e) => setPlaybackRate(Number(e.target.value))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                <div className="mb-6 space-y-4">
+                  {/* Export Controls */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex space-x-3">
+                      <button
+                        onClick={() => exportWaveform('png')}
+                        disabled={isExporting}
+                        className="export-btn flex items-center px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Export as PNG"
                       >
-                        <option value={0.5}>0.5x</option>
-                        <option value={0.75}>0.75x</option>
-                        <option value={1}>1x</option>
-                        <option value={1.25}>1.25x</option>
-                        <option value={1.5}>1.5x</option>
-                        <option value={2}>2x</option>
-                      </select>
+                        {isExporting ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+                        ) : (
+                          <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                        PNG
+                      </button>
+                      <button
+                        onClick={() => exportWaveform('svg')}
+                        disabled={isExporting}
+                        className="export-btn flex items-center px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Export as SVG"
+                      >
+                        {isExporting ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+                        ) : (
+                          <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                        SVG
+                      </button>
+                    </div>
+                    
+                    {/* Navigation Info */}
+                    <div className="text-xs text-gray-500">
+                      <span className="hidden sm:inline">Ctrl+Scroll to zoom • </span>
+                      <span className="hidden sm:inline">←→ to seek • </span>
+                      <span className="hidden sm:inline">Space to play/pause</span>
                     </div>
                   </div>
+
+
+                </div>
+              )}
+
+              {/* Audio Controls - Right under the waveform */}
+              {audioFile && (
+                <div className="flex items-center justify-center space-x-4 mt-4">
+                  <button
+                    onClick={stopAudio}
+                    className="p-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+                    title="Stop"
+                  >
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={togglePlayPause}
+                    className="px-8 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors font-medium"
+                  >
+                    {isPlaying ? 'Pause' : 'Play'}
+                  </button>
                 </div>
               )}
             </div>

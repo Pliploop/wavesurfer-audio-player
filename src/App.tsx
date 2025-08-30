@@ -52,6 +52,9 @@ function App() {
                 <li className="text-sm text-gray-600">Real-time waveform visualization</li>
                 <li className="text-sm text-gray-600">Customizable appearance</li>
                 <li className="text-sm text-gray-600">Volume & playback speed control</li>
+                <li className="text-sm text-gray-600">Waveform export (PNG/SVG)</li>
+                <li className="text-sm text-gray-600">Zoom & navigation controls</li>
+                <li className="text-sm text-gray-600">Spotify search integration</li>
               </ul>
             </div>
             <div>
